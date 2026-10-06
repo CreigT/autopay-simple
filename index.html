@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutoPay Simple — approval preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --ink:#17231c; --muted:#5d6b62; --line:#e2ddd2; --paper:#f4f1ea; --card:#fffcf7; --green:#1c6b45; --deep:#114831; --amber:#8a5a12; --red:#8d2f2f; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Outfit,sans-serif; color:var(--ink); background:radial-gradient(900px 420px at 100% -10%, #e7f3ea 0%, transparent 55%), var(--paper); }
+    .wrap { width:min(1080px, calc(100% - 32px)); margin:0 auto; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:22px 0 8px; }
+    .brand strong { font-family:Fraunces,serif; font-size:22px; display:block; }
+    .sponsor { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700; }
+    h1 { font-family:Fraunces,serif; font-size:clamp(40px,6vw,64px); line-height:.95; margin:0 0 12px; letter-spacing:-.04em; }
+    .lede { color:var(--muted); font-size:18px; line-height:1.5; max-width:640px; }
+    .hero { display:grid; grid-template-columns:1.3fr .7fr; gap:28px; padding:36px 0 10px; }
+    .stamp, .panel { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 16px 40px rgba(23,35,28,.06); }
+    .tabs { display:flex; gap:8px; margin:14px 0; flex-wrap:wrap; }
+    button, .btn { border:0; background:var(--deep); color:#fff; border-radius:999px; padding:12px 16px; cursor:pointer; font:inherit; }
+    button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+    button.on { background:var(--deep); color:#fff; border:0; }
+    button.warn { background:var(--amber); } button.danger { background:var(--red); }
+    .row { display:grid; grid-template-columns:1.2fr 1.2fr .8fr .7fr auto; gap:10px; align-items:end; }
+    label { display:block; font-size:13px; font-weight:700; margin-bottom:6px; }
+    input { width:100%; border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+    .badge { border-radius:999px; padding:4px 8px; font-size:12px; font-weight:700; }
+    .active { background:#e5f5eb; color:var(--deep); } .failed { background:#fde8e8; color:var(--red); } .link { background:#f7f1e4; color:var(--amber); }
+    .note { color:var(--muted); font-size:13px; } .ok { color:var(--deep); }
+    .hidden { display:none; }
+    @media (max-width:800px) { .hero, .row { grid-template-columns:1fr; } table { display:block; overflow-x:auto; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand"><strong>AutoPay Simple</strong><span class="sponsor">Sponsored by CREIGNIFICENT LLC</span></div>
+      <span class="note">Approval preview · no live charge</span>
+    </header>
+    <div class="tabs">
+      <button class="on" data-screen="home">1. Landing</button>
+      <button class="ghost" data-screen="admin">2. Dashboard</button>
+      <button class="ghost" data-screen="enroll">3. Client link</button>
+      <button class="ghost" data-screen="success">4. After Stripe</button>
+    </div>
+    <section id="home">
+      <div class="hero">
+        <div>
+          <h1>One link. Monthly autopay.</h1>
+          <p class="lede">Send a client one secure link. They enter name and email, choose a bank account or card, and authorize recurring billing. Stripe charges them. You watch a simple dashboard.</p>
+          <button onclick="show('admin')">Open the dashboard</button>
+        </div>
+        <aside class="stamp">
+          <span class="sponsor">V1 job</span>
+          <ol>
+            <li>Create the client.</li>
+            <li>Send the enrollment link.</li>
+            <li>Client enrolls on Stripe.</li>
+            <li>Stripe charges every month.</li>
+            <li>Pause or cancel from the dashboard.</li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+    <section id="admin" class="hidden">
+      <div class="panel">
+        <h2>Create client</h2>
+        <form id="create" class="row">
+          <div><label>Name</label><input name="name" required placeholder="Oak Street Daycare" /></div>
+          <div><label>Email</label><input name="email" type="email" required placeholder="billing@oakstreet.example" /></div>
+          <div><label>Monthly amount</label><input name="amount" type="number" min="1" step="0.01" required placeholder="480" /></div>
+          <div><label>Billing day</label><input name="day" type="number" min="1" max="28" value="1" required /></div>
+          <button type="submit">Create + link</button>
+        </form>
+        <p id="notice" class="ok"></p>
+      </div>
+      <div class="panel">
+        <h2>Autopay</h2>
+        <table>
+          <thead><tr><th>Client</th><th>Amount</th><th>Next payment</th><th>Paid</th><th>Failed</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+    <section id="enroll" class="hidden">
+      <div class="panel" style="max-width:560px">
+        <span class="sponsor">Secure enrollment</span>
+        <h1 style="font-size:42px">Set up autopay</h1>
+        <p class="lede">Hi Oak Street Daycare. Continue to Stripe to choose a bank account (ACH) or card. AutoPay Simple never sees those details.</p>
+        <p><b>$480.00</b> on day 1 of each month.</p>
+        <button onclick="show('success')">Continue to Stripe</button>
+        <p class="note">In the live app this button leaves your site and opens Stripe Checkout.</p>
+      </div>
+    </section>
+    <section id="success" class="hidden">
+      <div class="panel" style="max-width:640px">
+        <span class="sponsor">Enrollment received</span>
+        <h1 style="font-size:42px">Stripe has your authorization.</h1>
+        <p class="lede">This page does not mark you paid. AutoPay Simple waits for Stripe to confirm the payment by webhook. Bank account payments can take a few days to clear. A receipt is emailed by Stripe when the invoice is paid.</p>
+      </div>
+    </section>
+    <p class="note">Card and bank details stay on Stripe. This app only stores name, email, amount, and status.</p>
+  </div>
+  <script>
+    const clients = [
+      { name:"Oak Street Daycare", email:"billing@oakstreet.example", amount:"$480.00", day:"1", next:"Nov 1, 2026", paid:"Oct 1, 2026", failed:"No", status:"Active Autopay" },
+      { name:"Rialto Family Clinic", email:"ap@rialtofamily.example", amount:"$750.00", day:"15", next:"Oct 15, 2026", paid:"—", failed:"Yes", status:"Failed" },
+      { name:"Fontana Kids Club", email:"office@fontanakids.example", amount:"$320.00", day:"5", next:"Paused", paid:"Sep 5, 2026", failed:"No", status:"Paused" }
+    ];
+    function badge(status) {
+      const cls = status.includes("Active") ? "active" : status.includes("Fail") ? "failed" : "link";
+      return `<span class="badge ${cls}">${status}</span>`;
+    }
+    function draw() {
+      document.getElementById("rows").innerHTML = clients.map((c, i) => `<tr>
+        <td>${c.name}<br><span class="note">${c.email}</span></td>
+        <td>${c.amount}<br><span class="note">Day ${c.day}</span></td>
+        <td>${c.next}</td><td>${c.paid}</td><td>${c.failed}</td><td>${badge(c.status)}</td>
+        <td>
+          <button class="ghost" onclick="copyLink()">Copy link</button>
+          <button class="warn" onclick="toggle(${i})">${c.status === "Paused" ? "Resume" : "Pause"}</button>
+          <button class="danger" onclick="cancel(${i})">Cancel</button>
+        </td></tr>`).join("");
+    }
+    function show(id) {
+      ["home","admin","enroll","success"].forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
+      document.querySelectorAll(".tabs button").forEach(b => {
+        const on = b.dataset.screen === id;
+        b.className = on ? "on" : "ghost";
+      });
+    }
+    function copyLink() { document.getElementById("notice").textContent = "Enrollment link: https://autopay.example/enroll/demo-secure-link"; }
+    function toggle(i) {
+      clients[i].status = clients[i].status === "Paused" ? "Active Autopay" : "Paused";
+      clients[i].next = clients[i].status === "Paused" ? "Paused" : "Nov 1, 2026";
+      draw();
+    }
+    function cancel(i) { clients[i].status = "Cancelled"; clients[i].next = "Ends after period"; draw(); }
+    document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => show(b.dataset.screen));
+    document.getElementById("create").onsubmit = (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      clients.unshift({ name:data.get("name"), email:data.get("email"), amount:"$" + Number(data.get("amount")).toFixed(2), day:data.get("day"), next:"—", paid:"—", failed:"No", status:"Link sent" });
+      copyLink();
+      e.target.reset();
+      draw();
+    };
+    draw();
+  </script>
+</body>
+</html>
