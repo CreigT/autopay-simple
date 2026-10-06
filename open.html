@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutoPay Simple</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --ink:#17231c; --muted:#5d6b62; --line:#e2ddd2; --paper:#f4f1ea; --card:#fffcf7; --deep:#114831; --amber:#8a5a12; --red:#8d2f2f; --green:#1c6b45; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Outfit,sans-serif; color:var(--ink); background:radial-gradient(900px 420px at 100% -10%, #e7f3ea 0%, transparent 55%), var(--paper); }
+    .wrap { width:min(1080px, calc(100% - 20px)); margin:0 auto; padding-bottom:28px; }
+    header { padding:18px 0 4px; }
+    .brand strong { font-family:Fraunces,serif; font-size:22px; display:block; }
+    .sponsor { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700; }
+    h1 { font-family:Fraunces,serif; font-size:clamp(36px,8vw,64px); line-height:.95; margin:0 0 12px; letter-spacing:-.04em; }
+    .lede { color:var(--muted); font-size:18px; line-height:1.5; }
+    .hero { display:grid; gap:18px; padding:8px 0 10px; }
+    .stamp, .panel { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:0 16px 40px rgba(23,35,28,.06); margin-bottom:14px; }
+    .tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0 16px; }
+    button { border:0; background:var(--deep); color:#fff; border-radius:999px; padding:14px 16px; cursor:pointer; font:inherit; font-weight:650; min-height:48px; width:100%; }
+    button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+    button.on { background:var(--deep); color:#fff; }
+    button.warn { background:var(--amber); } button.danger { background:var(--red); }
+    label { display:block; font-size:13px; font-weight:700; margin-bottom:6px; }
+    input { width:100%; border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; background:#fff; font:inherit; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:10px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+    .badge { border-radius:999px; padding:4px 8px; font-size:12px; font-weight:700; }
+    .active { background:#e5f5eb; color:var(--deep); } .failed { background:#fde8e8; color:var(--red); } .link { background:#f7f1e4; color:var(--amber); }
+    .note { color:var(--muted); font-size:13px; } .ok { color:var(--deep); }
+    .hidden { display:none; }
+    .actions { display:grid; grid-template-columns:1fr; gap:8px; margin-top:10px; }
+    @media (min-width:800px) { .tabs { grid-template-columns:repeat(4,1fr); } .hero { grid-template-columns:1.3fr .7fr; } .actions { grid-template-columns:auto auto; } button { width:auto; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header><div class="brand"><strong>AutoPay Simple</strong><span class="sponsor">Sponsored by CREIGNIFICENT LLC</span></div></header>
+    <div class="tabs">
+      <button class="on" data-screen="home">Landing</button>
+      <button class="ghost" data-screen="admin">Dashboard</button>
+      <button class="ghost" data-screen="enroll">Client sign-in</button>
+      <button class="ghost" data-screen="success">After Stripe</button>
+    </div>
+    <section id="home">
+      <div class="hero">
+        <div>
+          <h1>One link. Monthly autopay.</h1>
+          <p class="lede">Send a client one secure link. They enter name and email, choose a bank account or card, and authorize recurring billing. Stripe charges them. You watch a simple dashboard.</p>
+          <div class="actions">
+            <button onclick="show('admin')">Open the dashboard</button>
+            <button class="ghost" onclick="show('enroll')">Client sign-in</button>
+          </div>
+        </div>
+        <aside class="stamp"><span class="sponsor">V1 job</span><ol><li>Create the client.</li><li>Send the enrollment link.</li><li>Client enrolls on Stripe.</li><li>Stripe charges every month.</li><li>Pause or cancel from the dashboard.</li></ol></aside>
+      </div>
+    </section>
+    <section id="admin" class="hidden">
+      <div class="panel">
+        <h2>Create client</h2>
+        <form id="create">
+          <label>Name</label><input name="name" required />
+          <label>Email</label><input name="email" type="email" required />
+          <label>Monthly amount</label><input name="amount" type="number" min="1" step="0.01" required />
+          <label>Billing day</label><input name="day" type="number" min="1" max="28" required />
+          <button type="submit">Create + link</button>
+        </form>
+        <p id="notice" class="ok"></p>
+      </div>
+      <div class="panel">
+        <h2>Autopay</h2>
+        <p class="note">Owner view. A client never sees this list.</p>
+        <table><thead><tr><th>Client</th><th>Amount</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table>
+      </div>
+    </section>
+    <section id="enroll" class="hidden">
+      <div class="panel">
+        <span class="sponsor">Secure enrollment</span>
+        <h1 style="font-size:42px">Set up autopay</h1>
+        <p class="lede" id="enroll-copy">This page is only for the client who received the link. It does not show any other client.</p>
+        <p id="enroll-amount"></p>
+        <div class="actions">
+          <button onclick="show('success')">Continue to Stripe</button>
+          <button class="ghost" onclick="show('admin')">Back to dashboard</button>
+        </div>
+      </div>
+    </section>
+    <section id="success" class="hidden">
+      <div class="panel">
+        <span class="sponsor">Enrollment received</span>
+        <h1 style="font-size:42px">Stripe has your authorization.</h1>
+        <p class="lede">This page does not mark you paid. AutoPay Simple waits for Stripe to confirm the payment by webhook.</p>
+        <div class="actions">
+          <button onclick="show('admin')">Owner dashboard</button>
+          <button class="ghost" onclick="show('home')">Landing</button>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    const clients = [];
+    function draw() {
+      document.getElementById('rows').innerHTML = clients.length ? clients.map((c,i) => '<tr><td>'+c.name+'<br><span class="note">'+c.email+'</span></td><td>'+c.amount+'<br><span class="note">Day '+c.day+'</span></td><td>'+c.status+'<div class="actions"><button class="ghost" onclick="openLink('+i+')">Copy link</button><button class="warn" onclick="toggle('+i+')">'+(c.status==='Paused'?'Resume':'Pause')+'</button><button class="danger" onclick="cancel('+i+')">Cancel</button></div></td></tr>').join('') : '<tr><td colspan="3">No clients yet.</td></tr>';
+    }
+    function show(id) {
+      ['home','admin','enroll','success'].forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+      document.querySelectorAll('.tabs button').forEach(b => b.className = b.dataset.screen === id ? 'on' : 'ghost');
+      window.scrollTo(0,0);
+    }
+    function openLink(i) {
+      const c = clients[i];
+      document.getElementById('enroll-copy').textContent = 'Continue to Stripe for '+c.name+'. This page does not show any other client.';
+      document.getElementById('enroll-amount').innerHTML = '<b>'+c.amount+'</b> on day '+c.day+' of each month.';
+      show('enroll');
+    }
+    function toggle(i) { clients[i].status = clients[i].status === 'Paused' ? 'Active Autopay' : 'Paused'; draw(); }
+    function cancel(i) { clients[i].status = 'Cancelled'; draw(); }
+    document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => show(b.dataset.screen));
+    document.getElementById('create').onsubmit = (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      clients.unshift({ name:data.get('name'), email:data.get('email'), amount:'$'+Number(data.get('amount')).toFixed(2), day:data.get('day'), status:'Link sent' });
+      e.target.reset(); draw();
+      document.getElementById('notice').textContent = 'Enrollment link ready for '+clients[0].name+'. Only that client can open it.';
+    };
+    draw();
+  </script>
+</body>
+</html>
