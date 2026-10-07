@@ -25,5 +25,13 @@ export async function POST(req) {
       expires_at:Math.floor(Date.now()/1000)+60*60*24
     },{idempotencyKey:crypto.randomUUID()});
     return NextResponse.json({url:session.url});
-  } catch(e) {return NextResponse.json({error:"Unable to create checkout. Check Stripe configuration."},{status:500});}
+   } catch (e) {
+    const reference = crypto.randomUUID().slice(0, 8);
+    console.error("AutoPay checkout creation failed", { reference, type: e.type, code: e.code, message: e.message });
+    const known = e.type === "StripeInvalidRequestError" || e.type === "StripeAuthenticationError" || e.type === "StripePermissionError";
+    const message = known && typeof e.message === "string"
+      ? e.message
+      : `Payment setup failed. Reference: ${reference}`;
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
