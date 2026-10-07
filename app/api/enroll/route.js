@@ -30,13 +30,6 @@ export async function POST(req) {
     mode: "subscription",
     customer: customer.id,
     client_reference_id: customer.id,
-    payment_method_types: ["card", "us_bank_account"],
-    payment_method_options: {
-      us_bank_account: {
-        financial_connections: { permissions: ["payment_method"] },
-        verification_method: "automatic"
-      }
-    },
     line_items: [
       {
         quantity: 1,
