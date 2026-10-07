@@ -16,6 +16,7 @@ export async function POST(req) {
     const customer=await stripe.customers.create({name,email,metadata:{app:APP_TAG,payment_type:"one_time"}});
     const session=await stripe.checkout.sessions.create({
       mode:"payment",customer:customer.id,
+      managed_payments:{enabled:false},
       line_items:[{price_data:{currency:"usd",unit_amount:Math.round(dollars*100),product_data:{name:"Cleaning service — "+name}},quantity:1}],
       payment_intent_data:{metadata:{app:APP_TAG,customer_id:customer.id}},
       metadata:{app:APP_TAG,customer_id:customer.id,payment_type:"one_time"},
