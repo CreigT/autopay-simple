@@ -28,6 +28,7 @@ export async function POST(req) {
   const billingDay = Number(customer.metadata.billing_day);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
+    managed_payments: { enabled: false },
     customer: customer.id,
     client_reference_id: customer.id,
     line_items: [
