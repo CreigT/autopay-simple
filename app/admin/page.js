@@ -154,10 +154,10 @@ export default function AdminPage() {
                 <td>{client.failed}</td>
                 <td>{badge(client.status)}</td>
                 <td className="actions">
-                  <button className="ghost" onClick={() => act(client.id, "link")}>Copy link</button>
-                  <a className="btn ghost" href={`mailto:${client.email}?subject=Autopay%20enrollment&body=${encodeURIComponent(client.enrollUrl)}`}>Email</a>
-                  <button className="warn" onClick={() => act(client.id, client.status === "Paused" ? "resume" : "pause")}>{client.status === "Paused" ? "Resume" : "Pause"}</button>
-                  <button className="danger" onClick={() => act(client.id, "cancel")}>Cancel</button>
+                  {client.paymentType !== "one_time" && <button className="ghost" onClick={() => act(client.id, "link")}>Copy link</button>}
+                  {client.paymentType !== "one_time" && <a className="btn ghost" href={`mailto:${client.email}?subject=Autopay%20enrollment&body=${encodeURIComponent(client.enrollUrl)}`}>Email</a>}
+                  {client.paymentType !== "one_time" && <button className="warn" onClick={() => act(client.id, client.status === "Paused" ? "resume" : "pause")}>{client.status === "Paused" ? "Resume" : "Pause"}</button>}
+                  {client.paymentType !== "one_time" && <button className="danger" onClick={() => act(client.id, "cancel")}>Cancel</button>}
                 </td>
               </tr>
             ))}
