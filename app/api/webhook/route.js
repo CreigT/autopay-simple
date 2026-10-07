@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe, APP_TAG } from "../../../../lib/stripe";
+import { getStripe, APP_TAG } from "../../../lib/stripe";
 
 export const runtime = "nodejs";
 
