@@ -1,34 +1,29 @@
-import { ownerOk, stripe } from "../../../lib/stripe";
+import crypto from "crypto";
+import { NextResponse } from "next/server";
+import { isAdmin } from "../../../lib/auth";
+import { getStripe, appUrl, APP_TAG } from "../../../lib/stripe";
 
-export async function POST(request) {
-  if (!ownerOk(request)) return Response.json({ error: "Owner login required" }, { status: 401 });
-  const body = await request.json().catch(() => ({}));
-  const amount = Math.round(Number(body.amount) * 100);
-  if (!body.name || !body.email || !amount) return Response.json({ error: "Name, email, and amount are required" }, { status: 400 });
+export async function POST(req) {
+  if (!(await isAdmin())) return NextResponse.json({error:"Unauthorized"}, {status:401});
+  const body=await req.json().catch(()=>({}));
+  const name=String(body.name||"").trim();
+  const email=String(body.email||"").trim().toLowerCase();
+  const dollars=Number(body.amount);
+  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !Number.isFinite(dollars) || dollars<1 || dollars>100000)
+    return NextResponse.json({error:"Valid name, email, and amount are required"},{status:400});
   try {
-    const customer = await stripe("/customers", "POST", {
-      name: body.name,
-      email: body.email,
-      "metadata[app]": "autopay-simple",
-      "metadata[amount]": String(amount),
-      "metadata[billing_day]": String(body.day || "1")
-    });
-    const origin = process.env.NEXT_PUBLIC_APP_URL || "https://autopay-simple.vercel.app";
-    const session = await stripe("/checkout/sessions", "POST", {
-      mode: "subscription",
-      customer: customer.id,
-      "payment_method_types[0]": "card",
-      "payment_method_types[1]": "us_bank_account",
-      "line_items[0][quantity]": "1",
-      "line_items[0][price_data][currency]": "usd",
-      "line_items[0][price_data][unit_amount]": String(amount),
-      "line_items[0][price_data][recurring][interval]": "month",
-      "line_items[0][price_data][product_data][name]": "Monthly autopay",
-      success_url: origin + "/?paid=1",
-      cancel_url: origin + "/?cancelled=1"
-    });
-    return Response.json({ url: session.url });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+    const stripe=getStripe();
+    const customer=await stripe.customers.create({name,email,metadata:{app:APP_TAG,payment_type:"one_time"}});
+    const session=await stripe.checkout.sessions.create({
+      mode:"payment",customer:customer.id,
+      payment_method_types:["card"],
+      line_items:[{price_data:{currency:"usd",unit_amount:Math.round(dollars*100),product_data:{name:"Cleaning service — "+name}},quantity:1}],
+      payment_intent_data:{metadata:{app:APP_TAG,customer_id:customer.id}},
+      metadata:{app:APP_TAG,customer_id:customer.id,payment_type:"one_time"},
+      success_url:appUrl()+"/success?session_id={CHECKOUT_SESSION_ID}",
+      cancel_url:appUrl()+"/cancelled",
+      expires_at:Math.floor(Date.now()/1000)+60*60*24
+    },{idempotencyKey:crypto.randomUUID()});
+    return NextResponse.json({url:session.url});
+  } catch(e) {return NextResponse.json({error:"Unable to create checkout. Check Stripe configuration."},{status:500});}
 }
