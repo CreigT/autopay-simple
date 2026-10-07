@@ -22,20 +22,26 @@ export async function GET() {
     const subscription = subs.data.find((s) => s.status !== "canceled") || subs.data[0] || null;
     const invoices = await stripe.invoices.list({ customer: customer.id, limit: 6 });
     const latest = invoices.data[0];
+    const isOneTime = customer.metadata?.payment_type === "one_time";
+    const payments = isOneTime ? await stripe.paymentIntents.list({ customer: customer.id, limit: 10 }) : { data: [] };
+    const newestPayment = payments.data[0] || null;
+    const paidPayment = payments.data.find(p => p.status === "succeeded");
+    const oneTimeStatus = paidPayment ? "Paid" : newestPayment?.status === "requires_payment_method" ? "Failed" : "Pending";
     rows.push({
       id: customer.id,
       name: customer.name || "—",
       email: customer.email || "—",
-      amount: money(amountOf(customer, subscription)),
-      amountCents: amountOf(customer, subscription),
+      amount: money(isOneTime ? newestPayment?.amount || 0 : amountOf(customer, subscription)),
+      amountCents: isOneTime ? newestPayment?.amount || 0 : amountOf(customer, subscription),
+      paymentType: isOneTime ? "one_time" : "monthly",
       billingDay: customer.metadata?.billing_day || "—",
-      status: statusOf(customer, subscription),
-      nextPayment: subscription?.pause_collection ? "Paused" : when(subscription?.current_period_end),
-      paid: latest?.status === "paid" ? when(latest.status_transitions?.paid_at || latest.created) : "—",
-      failed: invoices.data.some((inv) => inv.status === "open" && inv.attempted) ? "Yes" : "No",
+      status: isOneTime ? oneTimeStatus : statusOf(customer, subscription),
+      nextPayment: isOneTime ? "One-time" : subscription?.pause_collection ? "Paused" : when(subscription?.current_period_end),
+      paid: isOneTime ? when(paidPayment?.created) : latest?.status === "paid" ? when(latest.status_transitions?.paid_at || latest.created) : "—",
+      failed: isOneTime ? (newestPayment?.status === "requires_payment_method" ? "Yes" : "No") : invoices.data.some((inv) => inv.status === "open" && inv.attempted) ? "Yes" : "No",
       subscriptionId: subscription?.id || null,
       cancelAtPeriodEnd: Boolean(subscription?.cancel_at_period_end),
-      enrollUrl: `${appUrl()}/enroll/${signEnroll(customer.id)}`,
+      enrollUrl: isOneTime ? null : `${appUrl()}/enroll/${signEnroll(customer.id)}`,
       invoices: invoices.data.map((inv) => ({
         id: inv.id,
         number: inv.number,
