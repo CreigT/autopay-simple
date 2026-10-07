@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { readEnroll } from "../../../../lib/auth";
-import { getStripe, appUrl, APP_TAG } from "../../../../lib/stripe";
+import { readEnroll } from "../../../lib/auth";
+import { getStripe, appUrl, APP_TAG } from "../../../lib/stripe";
 
 export async function POST(req) {
   const body = await req.json().catch(() => ({}));
