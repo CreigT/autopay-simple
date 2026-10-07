@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", amount: "", billingDay: "1" });
+  const [paymentType,setPaymentType]=useState("monthly");
 
   async function load() {
     const [dash, audit] = await Promise.all([fetch("/api/clients"), fetch("/api/audit")]);
@@ -57,7 +58,7 @@ export default function AdminPage() {
     setBusy(true);
     setError("");
     setNotice("");
-    const res = await fetch("/api/clients", {
+    const res = await fetch(paymentType === "one_time" ? "/api/checkout" : "/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
@@ -68,7 +69,7 @@ export default function AdminPage() {
       setError(data.error || "Could not create client");
       return;
     }
-    setNotice(data.enrollUrl);
+    setNotice(data.enrollUrl || data.url);
     setForm({ name: "", email: "", amount: "", billingDay: "1" });
     await load();
   }
@@ -110,7 +111,9 @@ export default function AdminPage() {
   return (
     <main>
       <section className="panel">
-        <h2>Create client</h2>
+        <h2>Create payment link</h2>
+        <label>Payment type</label>
+        <select aria-label="Payment type" value={paymentType} onChange={e=>setPaymentType(e.target.value)} style={{width:"100%",padding:12,marginBottom:16}}><option value="monthly">Monthly autopay</option><option value="one_time">One-time payment</option></select>
         <form onSubmit={createClient} className="row">
           <div>
             <label>Name</label>
@@ -124,13 +127,13 @@ export default function AdminPage() {
             <label>Monthly amount</label>
             <input type="number" min="1" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
           </div>
-          <div>
+          {paymentType === "monthly" && <div>
             <label>Billing day</label>
             <input type="number" min="1" max="28" value={form.billingDay} onChange={(e) => setForm({ ...form, billingDay: e.target.value })} required />
-          </div>
+          </div>}
           <button disabled={busy} type="submit">{busy ? "Saving" : "Create + link"}</button>
         </form>
-        {notice && <p className="ok">Enrollment link: {notice}</p>}
+        {notice && <p className="ok">Secure payment link: <a href={notice} target="_blank" rel="noopener noreferrer">{notice}</a></p>}
         {error && <p className="error">{error}</p>}
       </section>
       <section className="panel">
